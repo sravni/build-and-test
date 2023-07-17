@@ -62,6 +62,7 @@ runs:
       with:
           context: .
           file: ${{ matrix.project.dockerfile }}
+          network: host
           build-args: |
             build_number=${{ matrix.project.build_number }}
             ENVIROMENT=${{ inputs.is_stage && 'stage' || 'production'  }}
