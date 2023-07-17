@@ -1,0 +1,84 @@
+name: build and test-action
+description: build image and run tests
+inputs:
+  is_stage:
+    description: "Запускается ли план для публикации на стейдж"
+    required: true
+  project_path_mask:
+    description: "Маска пути к файлам проекта"
+    required: true
+  with_push:
+    description: "Пушить ли собранный образ"
+    required: true
+  runner:
+    description: "Указывает какой раннер будет использоваться для запуска флоу"
+    required: false
+  image_version:
+    description: "Версия образа"
+    required: false
+  k8s_yaml_file_name:
+    description: "Имя файла {environment}.yaml в директории .k8s проекта для валидации его наличия и передачи следующим джобам"
+    required: true
+  gh_token:
+    description: "токен github"
+    required: true
+  github_npm_token:
+    description: "github_npm_token"
+    required: true
+  container_registry:
+    description: "container_registry"
+    required: true
+  docker_login:
+    description: "docker_login"
+    required: true
+  docker_pass:
+    description: "docker_pass"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    # Downloads a copy of the code in your repository before running CI tests
+    - name: Check out repository code
+      uses: actions/checkout@v3
+
+    - name: Login to ACR
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ inputs.container_registry }}
+        username: ${{ inputs.docker_login }}
+        password: ${{ inputs.docker_pass }}
+
+    - name: Check if image exist
+      run: |
+          inspect_result=$(docker manifest inspect "${{ inputs.container_registry }}/${{ matrix.project.image_name }}" > /dev/null 2>&1; echo $?)
+          if [ $inspect_result -eq 1 ] 
+          then 
+            echo "IMAGE_EXIST=false" >> $GITHUB_ENV 
+          else 
+            echo "IMAGE_EXIST=true" >> $GITHUB_ENV
+            echo "Образ ${{ matrix.project.image_name }} уже cуществует"
+          fi
+      shell: bash
+
+    - name: Set up Docker Buildx
+      if: ${{ env.IMAGE_EXIST == 'false' }}
+      uses: docker/setup-buildx-action@v2
+      with:
+        driver: docker
+        version: v0.10.0
+
+    - name: Docker build
+      if: ${{ env.IMAGE_EXIST == 'false' }}
+      uses: docker/build-push-action@v4
+      with:
+          context: .
+          file: ${{ matrix.project.dockerfile }}
+          build-args: |
+            build_number=${{ matrix.project.build_number }}
+            ENVIROMENT=${{ inputs.is_stage && 'stage' || 'production'  }}
+            GITHUB_TOKEN=${{ inputs.gh_token }}
+            GITHUB_USERNAME=sravni
+            GITHUB_NPM_TOKEN=${{ inputs.gh_token }}
+          push: ${{ inputs.with_push }}
+          tags: "${{ inputs.container_registry }}/${{ matrix.project.image_name }}"
