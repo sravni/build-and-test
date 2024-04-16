@@ -13,15 +13,36 @@ inputs:
   github_npm_token:
     description: "github_npm_token"
     required: true
-  container_registry:
-    description: "container_registry"
+  harbor_registry:
+    description: "harbor_registry"
     required: true
-  docker_login:
-    description: "docker_login"
+  harbor_login:
+    description: "harbor_login"
     required: true
-  docker_pass:
-    description: "docker_pass"
+  harbor_pass:
+    description: "harbor_pass"
     required: true
+  nextauth_url:         # Добавлено для команды MFO
+    description: "nextauth_url"
+    required: false     #
+  nextauth_secret:      # Добавлено для команды MFO
+    description: "nextauth_secret"
+    required: false     #
+  slack_client_secret:  # Добавлено для команды MFO
+    description: "slack_client_secret"
+    required: false     #
+  slack_client_id:      # Добавлено для команды MFO
+    description: "slack_client_id"
+    required: false     #
+  allure_token:         # Добавлено для команды Mobile
+    description: "allure_token"
+    required: false     #
+  sentry_sourcemap_web_frontend_auth_token: # AUTH токен для source map сентри, добавлено для команды OSAGO
+    description: "sentry_sourcemap_web_frontend_auth_token"
+    required: false
+  canary:
+    description: "canary"
+    required: false
 
 runs:
   using: "composite"
@@ -33,28 +54,32 @@ runs:
     - name: Login to ACR
       uses: docker/login-action@v2
       with:
-        registry: ${{ inputs.container_registry }}
-        username: ${{ inputs.docker_login }}
-        password: ${{ inputs.docker_pass }}
+        registry: ${{ inputs.harbor_registry }}
+        username: ${{ inputs.harbor_login }}
+        password: ${{ inputs.harbor_pass }}
 
+    - name: Check if image is a canary
+      run: |
+        if [[ "${{ inputs.canary }}" == 'true' ]]
+          then
+          canary_tag="canary-"
+          else
+            canary_tag=""
+          fi
+          echo "CANARY_TAG=$canary_tag" >> $GITHUB_ENV
+      shell: bash
+    
     - name: Check if image exist
       run: |
-          inspect_result=$(docker manifest inspect "${{ inputs.container_registry }}/${{ matrix.project.image_name }}" > /dev/null 2>&1; echo $?)
-          if [ $inspect_result -eq 1 ] 
-          then 
-            echo "IMAGE_EXIST=false" >> $GITHUB_ENV 
-          else 
-            echo "IMAGE_EXIST=true" >> $GITHUB_ENV
-            echo "Образ ${{ matrix.project.image_name }} уже cуществует"
-          fi
+        inspect_result=$(docker manifest inspect "${{ inputs.harbor_registry }}/${{ env.CANARY_TAG }}${{ matrix.project.image_name }}" > /dev/null 2>&1; echo $?)
+        if [ $inspect_result -eq 1 ]
+        then
+          echo "IMAGE_EXIST=false" >> $GITHUB_ENV
+        else
+          echo "IMAGE_EXIST=true" >> $GITHUB_ENV
+          echo "Образ ${{ matrix.project.image_name }} уже cуществует"
+        fi
       shell: bash
-
-    - name: Set up Docker Buildx
-      if: ${{ env.IMAGE_EXIST == 'false' }}
-      uses: docker/setup-buildx-action@v2
-      with:
-        driver: docker
-        version: v0.10.0
 
     - name: Docker build
       if: ${{ env.IMAGE_EXIST == 'false' }}
@@ -68,5 +93,17 @@ runs:
             GITHUB_TOKEN=${{ inputs.gh_token }}
             GITHUB_USERNAME=sravni
             GITHUB_NPM_TOKEN=${{ inputs.gh_token }}
+            
+            build_number=${{ matrix.project.build_number }}
+            ENVIROMENT=${{ inputs.is_stage && 'stage' || 'production'  }}
+            GITHUB_TOKEN=${{ inputs.gh_token }}
+            GITHUB_USERNAME=sravni
+            GITHUB_NPM_TOKEN=${{ inputs.gh_token }}
+            NEXTAUTH_URL=${{ inputs.nextauth_url }}
+            NEXTAUTH_SECRET=${{ inputs.nextauth_secret }}
+            SLACK_CLIENT_SECRET=${{ inputs.slack_client_secret }}
+            SLACK_CLIENT_ID=${{ inputs.slack_client_id }}
+            ALLURE_TOKEN=${{ inputs.allure_token }}
+            SENTRY_AUTH_TOKEN=${{ inputs.sentry_sourcemap_web_frontend_auth_token }}
           push: ${{ inputs.with_push }}
-          tags: "${{ inputs.container_registry }}/${{ matrix.project.image_name }}"
+          tags: "${{ inputs.harbor_registry }}/${{ env.canary_tag }}${{ matrix.project.image_name }}"
