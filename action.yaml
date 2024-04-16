@@ -60,13 +60,14 @@ runs:
 
     - name: Check if image is a canary
       run: |
-        if [[ "${{ inputs.canary }}" == 'true' ]]
-          then
-          canary_tag="canary-"
-          else
-            canary_tag=""
-          fi
-          echo "CANARY_TAG=$canary_tag" >> $GITHUB_ENV
+        inspect_result=$(docker manifest inspect "${{ inputs.harbor_registry }}/${{ matrix.project.image_name }}" > /dev/null 2>&1; echo $?)
+        if [ $inspect_result -eq 1 ] 
+        then 
+          echo "IMAGE_EXIST=false" >> $GITHUB_ENV 
+        else 
+          echo "IMAGE_EXIST=true" >> $GITHUB_ENV
+          echo "Образ ${{ matrix.project.image_name }} уже cуществует"
+        fi
       shell: bash
     
     - name: Check if image exist
@@ -106,4 +107,4 @@ runs:
             ALLURE_TOKEN=${{ inputs.allure_token }}
             SENTRY_AUTH_TOKEN=${{ inputs.sentry_sourcemap_web_frontend_auth_token }}
           push: ${{ inputs.with_push }}
-          tags: "${{ inputs.harbor_registry }}/${{ env.canary_tag }}${{ matrix.project.image_name }}"
+          tags: "${{ inputs.harbor_registry }}/${{ matrix.project.image_name }}"
