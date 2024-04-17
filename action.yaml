@@ -22,27 +22,6 @@ inputs:
   harbor_pass:
     description: "harbor_pass"
     required: true
-  canary:
-    description: "Включить канарейку"
-    required: false
-  nextauth_url:                             # Добавлено для команды MFO
-    description: "nextauth_url"
-    required: false                         #
-  nextauth_secret:                          # Добавлено для команды MFO
-    description: "nextauth_secret"
-    required: false                         #
-  slack_client_secret:                      # Добавлено для команды MFO
-    description: "slack_client_secret"
-    required: false                         #
-  slack_client_id:                          # Добавлено для команды MFO
-    description: "slack_client_id"
-    required: false                         #
-  allure_token:                             # Добавлено для команды Mobile
-    description: "allure_token"
-    required: false                         #
-  sentry_sourcemap_web_frontend_auth_token: # AUTH токен для source map сентри, добавлено для команды OSAGO
-    description: "sentry_sourcemap_web_frontend_auth_token"
-    required: false
 
 runs:
   using: "composite"
@@ -89,11 +68,5 @@ runs:
           GITHUB_TOKEN=${{ inputs.gh_token }}
           GITHUB_USERNAME=sravni
           GITHUB_NPM_TOKEN=${{ inputs.gh_token }}
-          NEXTAUTH_URL=${{ inputs.nextauth_url }}
-          NEXTAUTH_SECRET=${{ inputs.nextauth_secret }}
-          SLACK_CLIENT_SECRET=${{ inputs.slack_client_secret }}
-          SLACK_CLIENT_ID=${{ inputs.slack_client_id }}
-          ALLURE_TOKEN=${{ inputs.allure_token }}
-          SENTRY_AUTH_TOKEN=${{ inputs.sentry_sourcemap_web_frontend_auth_token }}
         push: ${{ inputs.with_push }}
         tags: "${{ inputs.harbor_registry }}/${{ matrix.project.image_name }}"
