@@ -28,7 +28,7 @@ runs:
   steps:
     # Downloads a copy of the code in your repository before running CI tests
     - name: Check out repository code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Login to ACR
       uses: docker/login-action@v2
