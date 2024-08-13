@@ -53,6 +53,7 @@ runs:
       if: ${{ env.IMAGE_EXIST == 'false' }}
       uses: docker/setup-buildx-action@v3
       with:
+        driver-opts: network=host
         version: v0.16.2
 
     - name: Docker build
